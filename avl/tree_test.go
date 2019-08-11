@@ -175,3 +175,5 @@ func TestRandomInsertAtRemove(t *testing.T) {
 		}
 	}
 }
+
+// TODO: test find
