@@ -72,11 +72,11 @@ func (t *Tree) InsertAt(ref *Node, n *Node) {
 		t.root = n
 	} else if ref != &t.mark && ref.Left == nil {
 		// case 2, insert to ref's left
-		t.root = childUpdated(t.root, ref, n, -1)
+		t.root = linkUpdated(t.root, ref, n, &ref.Left)
 	} else {
 		// case 3, insert to ref's left subtree
 		// case 4, insert to end
-		t.root = childUpdated(t.root, ref.Prev, n, +1)
+		t.root = linkUpdated(t.root, ref.Prev, n, &ref.Prev.Right)
 	}
 
 	// list
@@ -204,14 +204,14 @@ func insert(root *Node, n *Node, less Less) *Node {
 		if less(n, cur) {
 			if cur.Left == nil {
 				listInsert(cur, n)
-				return childUpdated(root, cur, n, -1)
+				return linkUpdated(root, cur, n, &cur.Left)
 			} else {
 				cur = cur.Left
 			}
 		} else {
 			if cur.Right == nil {
 				listInsert(cur.Next, n)
-				return childUpdated(root, cur, n, +1)
+				return linkUpdated(root, cur, n, &cur.Right)
 			} else {
 				cur = cur.Right
 			}
@@ -221,7 +221,10 @@ func insert(root *Node, n *Node, less Less) *Node {
 
 func removeMin(root *Node, n *Node) *Node {
 	p := n.Parent
-	return childUpdated(root, p, n.Right, -1)
+	if p == nil {
+		return n.Right
+	}
+	return linkUpdated(root, p, n.Right, &p.Left)
 }
 
 func remove(root *Node, n *Node) *Node {
@@ -234,14 +237,13 @@ func remove(root *Node, n *Node) *Node {
 	next.Prev = n.Prev
 
 	p := n.Parent
-	dir := dirOf(p, n)
-
+	var updated *Node
 	if n.Left == nil {
 		// replace n with right subtree
-		return childUpdated(root, p, n.Right, dir)
+		updated = n.Right
 	} else if n.Right == nil {
 		// replace n with left subtree
-		return childUpdated(root, p, n.Left, dir)
+		updated = n.Left
 	} else {
 		// borrow next from right subtree
 		r := n.Right
@@ -250,40 +252,32 @@ func remove(root *Node, n *Node) *Node {
 		// set up next
 		setRight(next, r)
 		setLeft(next, n.Left)
-		next = fix(next)
 		// replace n with next
-		return childUpdated(root, p, next, dir)
+		updated = fix(next)
 	}
-}
 
-func dirOf(p *Node, n *Node) int {
 	if p == nil {
-		return 0
+		if updated != nil {
+			updated.Parent = nil
+		}
+		return updated
 	} else if n == p.Left {
-		return -1
+		return linkUpdated(root, p, updated, &p.Left)
 	} else {
-		return 1
+		return linkUpdated(root, p, updated, &p.Right)
 	}
 }
 
-func childUpdated(root *Node, p *Node, c *Node, dir int) *Node {
+func linkUpdated(root *Node, p *Node, c *Node, link **Node) *Node {
 	for {
-		if p == nil {
-			// c is new root
-			if c != nil {
-				c.Parent = nil
-			}
-			return c
-		}
-
+		// p is not nil, c may be nil
 		newp := p.Parent
-		newdir := dirOf(newp, p)
 		h := height(p)
 
-		if dir < 0 {
-			setLeft(p, c)
-		} else {
-			setRight(p, c)
+		// link c to p and adjust p to newc
+		*link = c
+		if c != nil {
+			c.Parent = p
 		}
 		newc := fix(p)
 
@@ -291,8 +285,21 @@ func childUpdated(root *Node, p *Node, c *Node, dir int) *Node {
 			// p was not rotated and p's height not updated
 			return root
 		}
+		if newp == nil {
+			// newc is new root
+			newc.Parent = nil
+			return newc
+		}
 
-		p, c, dir = newp, newc, newdir
+		// next linkd
+		var newlink **Node
+		if p == newp.Left {
+			newlink = &newp.Left
+		} else {
+			newlink = &newp.Right
+		}
+
+		p, c, link = newp, newc, newlink
 	}
 }
 
