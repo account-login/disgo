@@ -291,7 +291,7 @@ func linkUpdated(root *Node, p *Node, c *Node, link **Node) *Node {
 			return newc
 		}
 
-		// next linkd
+		// next link
 		var newlink **Node
 		if p == newp.Left {
 			newlink = &newp.Left

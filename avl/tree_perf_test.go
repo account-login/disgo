@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+const TreeSize = 1024 * 1024
+
 func setupSequencialNodes(N int) (nodes []Data, indexes []int) {
 	nodes = make([]Data, N)
 	indexes = make([]int, N)
@@ -21,8 +23,12 @@ func setupSequencialNodes(N int) (nodes []Data, indexes []int) {
 }
 
 func BenchmarkInsertSequencial(b *testing.B) {
+	size := b.N
+	if size < TreeSize {
+		size = TreeSize
+	}
 	tree := New()
-	nodes, indexes := setupSequencialNodes(b.N)
+	nodes, indexes := setupSequencialNodes(size)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -31,9 +37,13 @@ func BenchmarkInsertSequencial(b *testing.B) {
 }
 
 func BenchmarkInsertRandom(b *testing.B) {
+	size := b.N
+	if size < TreeSize {
+		size = TreeSize
+	}
 	tree := New()
-	nodes := make([]Data, b.N)
-	for i := 0; i < b.N; i++ {
+	nodes := make([]Data, size)
+	for i := 0; i < size; i++ {
 		nodes[i].val = rand.Int63()
 	}
 
@@ -44,9 +54,13 @@ func BenchmarkInsertRandom(b *testing.B) {
 }
 
 func BenchmarkRemoveSequencial(b *testing.B) {
+	size := b.N
+	if size < TreeSize {
+		size = TreeSize
+	}
 	tree := New()
-	nodes, indexes := setupSequencialNodes(b.N)
-	for i := 0; i < b.N; i++ {
+	nodes, indexes := setupSequencialNodes(size)
+	for i := 0; i < size; i++ {
 		tree.Insert(&nodes[i].node, less)
 	}
 
@@ -57,22 +71,30 @@ func BenchmarkRemoveSequencial(b *testing.B) {
 }
 
 func BenchmarkRemoveSequencialReverse(b *testing.B) {
+	size := b.N
+	if size < TreeSize {
+		size = TreeSize
+	}
 	tree := New()
-	nodes, indexes := setupSequencialNodes(b.N)
-	for i := 0; i < b.N; i++ {
+	nodes, indexes := setupSequencialNodes(size)
+	for i := 0; i < size; i++ {
 		tree.Insert(&nodes[i].node, less)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		tree.Remove(&nodes[b.N-indexes[i]-1].node)
+		tree.Remove(&nodes[size-indexes[i]-1].node)
 	}
 }
 
 func BenchmarkRemoveRandom(b *testing.B) {
+	size := b.N
+	if size < TreeSize {
+		size = TreeSize
+	}
 	tree := New()
-	nodes := make([]Data, b.N)
-	for i := 0; i < b.N; i++ {
+	nodes := make([]Data, size)
+	for i := 0; i < size; i++ {
 		nodes[i].val = rand.Int63()
 		tree.Insert(&nodes[i].node, less)
 	}
@@ -96,8 +118,8 @@ func cmpHelper(i int64, n *Node) int {
 
 func BenchmarkFindSequencial(b *testing.B) {
 	tree := New()
-	nodes := make([]Data, b.N)
-	for i := 0; i < b.N; i++ {
+	nodes := make([]Data, TreeSize)
+	for i := 0; i < TreeSize; i++ {
 		nodes[i].val = int64(i)
 		tree.Insert(&nodes[i].node, less)
 	}
@@ -105,7 +127,7 @@ func BenchmarkFindSequencial(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		n := tree.Find(func(n *Node) int {
-			return cmpHelper(int64(i), n)
+			return cmpHelper(int64(i%TreeSize), n)
 		})
 		_ = n
 	}
@@ -113,9 +135,9 @@ func BenchmarkFindSequencial(b *testing.B) {
 
 func BenchmarkFindRandom(b *testing.B) {
 	tree := New()
-	nodes := make([]Data, b.N)
-	vals := make([]int64, b.N)
-	for i := 0; i < b.N; i++ {
+	nodes := make([]Data, TreeSize)
+	vals := make([]int64, TreeSize)
+	for i := 0; i < TreeSize; i++ {
 		val := rand.Int63()
 		nodes[i].val = val
 		vals[i] = val
@@ -125,8 +147,44 @@ func BenchmarkFindRandom(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		n := tree.Find(func(n *Node) int {
-			return cmpHelper(vals[i], n)
+			return cmpHelper(vals[i%TreeSize], n)
 		})
 		_ = n
 	}
+}
+
+func pBenchmarkFindRepeat(b *testing.B, repeat int) {
+	tree := New()
+	nodes := make([]Data, TreeSize)
+	vals := make([]int64, TreeSize)
+	for i := 0; i < TreeSize; i++ {
+		val := rand.Int63()
+		nodes[i].val = val
+		vals[i] = val
+		tree.Insert(&nodes[i].node, less)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N/repeat; i++ {
+		b.StopTimer()
+		n := tree.Find(func(n *Node) int {
+			return cmpHelper(vals[i], n)
+		})
+		b.StartTimer()
+
+		for j := 0; j < repeat; j++ {
+			n = tree.Find(func(n *Node) int {
+				return cmpHelper(vals[i], n)
+			})
+		}
+		_ = n
+	}
+}
+
+func BenchmarkFindRepeat10(b *testing.B) {
+	pBenchmarkFindRepeat(b, 10)
+}
+
+func BenchmarkFindRepeat100(b *testing.B) {
+	pBenchmarkFindRepeat(b, 100)
 }
