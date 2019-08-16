@@ -83,7 +83,7 @@ func BenchmarkRemoveSequencialReverse(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		tree.Remove(&nodes[size-indexes[i]-1].node)
+		tree.Remove(&nodes[indexes[size-i-1]].node)
 	}
 }
 
