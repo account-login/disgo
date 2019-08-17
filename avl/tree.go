@@ -219,41 +219,14 @@ func insert(root *Node, n *Node, less Less) *Node {
 	}
 }
 
-func removeMin(root *Node, n *Node) *Node {
-	p := n.Parent
-	if p == nil {
-		return n.Right
-	}
-	return linkUpdated(root, p, n.Right, &p.Left)
-}
-
-func remove(root *Node, n *Node) *Node {
-	// for later use
-	prev := n.Prev
-	next := n.Next
-
-	// detach from list
-	prev.Next = n.Next
-	next.Prev = n.Prev
-
+func removeLow(root *Node, n *Node) *Node {
 	p := n.Parent
 	var updated *Node
 	if n.Left == nil {
-		// replace n with right subtree
 		updated = n.Right
-	} else if n.Right == nil {
-		// replace n with left subtree
-		updated = n.Left
 	} else {
-		// borrow next from right subtree
-		r := n.Right
-		r.Parent = nil
-		r = removeMin(r, next)
-		// set up next
-		setRight(next, r)
-		setLeft(next, n.Left)
-		// replace n with next
-		updated = fix(next)
+		// p.Right == nil
+		updated = n.Left
 	}
 
 	if p == nil {
@@ -266,6 +239,43 @@ func remove(root *Node, n *Node) *Node {
 	} else {
 		return linkUpdated(root, p, updated, &p.Right)
 	}
+}
+
+func replace(root *Node, old *Node, new *Node) *Node {
+	p := old.Parent
+
+	new.Parent = p
+	if p != nil && p.Left == old {
+		p.Left = new
+	} else if p != nil {
+		p.Right = new
+	}
+
+	setLeft(new, old.Left)
+	setRight(new, old.Right)
+
+	new.Height = old.Height
+
+	if root == old {
+		return new
+	} else {
+		return root
+	}
+}
+
+func remove(root *Node, n *Node) *Node {
+	if n.Left == nil || n.Right == nil {
+		root = removeLow(root, n)
+	} else {
+		// remove n.Next from right subtree and replace n with n.Next
+		next := n.Next
+		root = removeLow(root, next)
+		root = replace(root, n, next)
+	}
+	// detach from list
+	n.Prev.Next = n.Next
+	n.Next.Prev = n.Prev
+	return root
 }
 
 func linkUpdated(root *Node, p *Node, c *Node, link **Node) *Node {
