@@ -54,7 +54,7 @@ func (t *Tree) Insert(n *Node, less Less) {
 		t.root = n
 		listInsert(&t.mark, n)
 	} else {
-		t.root = insert(t.root, n, less)
+		insert(&t.root, n, less)
 	}
 }
 
@@ -72,11 +72,11 @@ func (t *Tree) InsertAt(ref *Node, n *Node) {
 		t.root = n
 	} else if ref != &t.mark && ref.Left == nil {
 		// case 2, insert to ref's left
-		t.root = linkUpdated(t.root, ref, n, &ref.Left)
+		linkUpdated(&t.root, ref, n, &ref.Left)
 	} else {
 		// case 3, insert to ref's left subtree
 		// case 4, insert to end
-		t.root = linkUpdated(t.root, ref.Prev, n, &ref.Prev.Right)
+		linkUpdated(&t.root, ref.Prev, n, &ref.Prev.Right)
 	}
 
 	// list
@@ -84,7 +84,7 @@ func (t *Tree) InsertAt(ref *Node, n *Node) {
 }
 
 func (t *Tree) Remove(n *Node) {
-	t.root = remove(t.root, n)
+	remove(&t.root, n)
 	n.Reset()
 }
 
@@ -198,20 +198,22 @@ func fix(n *Node) *Node {
 	return n
 }
 
-func insert(root *Node, n *Node, less Less) *Node {
-	cur := root
+func insert(root **Node, n *Node, less Less) {
+	cur := *root
 	for {
 		if less(n, cur) {
 			if cur.Left == nil {
 				listInsert(cur, n)
-				return linkUpdated(root, cur, n, &cur.Left)
+				linkUpdated(root, cur, n, &cur.Left)
+				return
 			} else {
 				cur = cur.Left
 			}
 		} else {
 			if cur.Right == nil {
 				listInsert(cur.Next, n)
-				return linkUpdated(root, cur, n, &cur.Right)
+				linkUpdated(root, cur, n, &cur.Right)
+				return
 			} else {
 				cur = cur.Right
 			}
@@ -219,7 +221,7 @@ func insert(root *Node, n *Node, less Less) *Node {
 	}
 }
 
-func removeLow(root *Node, n *Node) *Node {
+func removeLow(root **Node, n *Node) {
 	p := n.Parent
 	var updated *Node
 	if n.Left == nil {
@@ -233,15 +235,15 @@ func removeLow(root *Node, n *Node) *Node {
 		if updated != nil {
 			updated.Parent = nil
 		}
-		return updated
+		*root = updated
 	} else if n == p.Left {
-		return linkUpdated(root, p, updated, &p.Left)
+		linkUpdated(root, p, updated, &p.Left)
 	} else {
-		return linkUpdated(root, p, updated, &p.Right)
+		linkUpdated(root, p, updated, &p.Right)
 	}
 }
 
-func replace(root *Node, old *Node, new *Node) *Node {
+func replace(root **Node, old *Node, new *Node) {
 	p := old.Parent
 
 	new.Parent = p
@@ -256,29 +258,26 @@ func replace(root *Node, old *Node, new *Node) *Node {
 
 	new.Height = old.Height
 
-	if root == old {
-		return new
-	} else {
-		return root
+	if *root == old {
+		*root = new
 	}
 }
 
-func remove(root *Node, n *Node) *Node {
+func remove(root **Node, n *Node) {
 	if n.Left == nil || n.Right == nil {
-		root = removeLow(root, n)
+		removeLow(root, n)
 	} else {
 		// remove n.Next from right subtree and replace n with n.Next
 		next := n.Next
-		root = removeLow(root, next)
-		root = replace(root, n, next)
+		removeLow(root, next)
+		replace(root, n, next)
 	}
 	// detach from list
 	n.Prev.Next = n.Next
 	n.Next.Prev = n.Prev
-	return root
 }
 
-func linkUpdated(root *Node, p *Node, c *Node, link **Node) *Node {
+func linkUpdated(root **Node, p *Node, c *Node, link **Node) {
 	for {
 		// p is not nil, c may be nil
 		newp := p.Parent
@@ -293,12 +292,13 @@ func linkUpdated(root *Node, p *Node, c *Node, link **Node) *Node {
 
 		if newc == p && height(newc) == h {
 			// p was not rotated and p's height not updated
-			return root
+			return
 		}
 		if newp == nil {
 			// newc is new root
 			newc.Parent = nil
-			return newc
+			*root = newc
+			return
 		}
 
 		// next link
